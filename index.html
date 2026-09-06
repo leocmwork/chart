@@ -293,20 +293,40 @@
     let chartInstance = null;
     let sesionesData = [];
     let isHovered = false;
-    let loopIntervalId = null;
+    let animProgress = 0; // Estado del avance (0.0 a 1.0)
+    let animationFrameReq = null;
 
     document.getElementById('fecha').valueAsDate = new Date();
 
-    // Eventos de ratón para congelar la animación cuando interactúas
+    // Pausar animación y mostrar todo el gráfico si el usuario entra con el ratón
     const heroElem = document.getElementById('chartHeroArea');
-    heroElem.addEventListener('mouseenter', () => {
-      isHovered = true;
-      showFullChart();
-    });
-    heroElem.addEventListener('mouseleave', () => {
-      isHovered = false;
-      startProgressiveLoop();
-    });
+    heroElem.addEventListener('mouseenter', () => isHovered = true);
+    heroElem.addEventListener('mouseleave', () => isHovered = false);
+
+    // PLUGIN CUSTOM DE ANIMACIÓN CONTINUA (Máxima Fiabilidad)
+    const progressiveLoopPlugin = {
+      id: 'progressiveLoopPlugin',
+      beforeDatasetsDraw(chart) {
+        if (isHovered) return; // Si hay interactividad, mostrar completo
+
+        const { ctx, chartArea } = chart;
+        const width = chartArea.right - chartArea.left;
+        const currentClipWidth = width * animProgress;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(chartArea.left, chartArea.top - 10, currentClipWidth, chartArea.height + 20);
+        ctx.clip();
+      },
+      afterDatasetsDraw(chart) {
+        if (isHovered) return;
+        const { ctx } = chart;
+        ctx.restore();
+      }
+    };
+
+    // Registrar plugin en Chart.js
+    Chart.register(progressiveLoopPlugin);
 
     document.getElementById('pokerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -382,7 +402,7 @@
     function updateUI() {
       renderTable();
       renderStats();
-      initChart();
+      renderChart();
     }
 
     function renderTable() {
@@ -426,31 +446,52 @@
       elWinrate.className = `stat-value ${winrate >= 0 ? 'positive' : 'negative'}`;
     }
 
-    // Prepara los datos acumulados
-    function getChartFullData() {
+    function startAnimationLoop() {
+      if (animationFrameReq) cancelAnimationFrame(animationFrameReq);
+
+      let lastTime = performance.now();
+      const speed = 0.00035; // Controla la velocidad del trazado progresivo (mayor número = más rápido)
+
+      function loop(time) {
+        const delta = time - lastTime;
+        lastTime = time;
+
+        if (!isHovered) {
+          animProgress += delta * speed;
+          if (animProgress > 1.25) { // Espera un pequeño instante al final antes de reiniciar
+            animProgress = 0;
+          }
+          if (chartInstance) {
+            chartInstance.draw();
+          }
+        } else {
+          animProgress = 1.0;
+          if (chartInstance) chartInstance.draw();
+        }
+
+        animationFrameReq = requestAnimationFrame(loop);
+      }
+
+      animationFrameReq = requestAnimationFrame(loop);
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById('bankrollChart').getContext('2d');
+      
       let cumulative = 0;
       const labels = ['Start'];
-      const values = [0];
+      const data = [0];
 
       sesionesData.forEach((s, index) => {
         cumulative += s.resultado;
         labels.push(`S${index + 1}`);
-        values.push(cumulative);
+        data.push(cumulative);
       });
 
-      return { labels, values, cumulative };
-    }
-
-    // Inicializa el gráfico base en blanco
-    function initChart() {
-      const ctx = document.getElementById('bankrollChart').getContext('2d');
-      const { cumulative } = getChartFullData();
-
       if (chartInstance) chartInstance.destroy();
-      if (loopIntervalId) clearInterval(loopIntervalId);
 
-      const isPositive = cumulative >= 0;
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+      const isPositive = cumulative >= 0;
       
       if (isPositive) {
         gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
@@ -465,10 +506,10 @@
       chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: [],
+          labels: labels,
           datasets: [{
             label: 'Bankroll ($)',
-            data: [],
+            data: data,
             borderColor: mainColor,
             borderWidth: 3,
             backgroundColor: gradient,
@@ -487,7 +528,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: { duration: 300 }, // Suaviza la unión entre puntos
+          animation: false, // Desactivamos animaciones internas para control total por loop
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -523,48 +564,8 @@
         }
       });
 
-      startProgressiveLoop();
-    }
-
-    // BUCLE PROGRESIVO DE DIBUJADO PUNTO POR PUNTO
-    function startProgressiveLoop() {
-      if (loopIntervalId) clearInterval(loopIntervalId);
-      if (isHovered) return;
-
-      const { labels, values } = getChartFullData();
-      let currentIndex = 0;
-
-      // Limpia la gráfica para empezar a dibujar
-      chartInstance.data.labels = [];
-      chartInstance.data.datasets[0].data = [];
-      chartInstance.update('none');
-
-      loopIntervalId = setInterval(() => {
-        if (isHovered) return;
-
-        if (currentIndex < labels.length) {
-          // Añade el siguiente punto progresivamente
-          chartInstance.data.labels.push(labels[currentIndex]);
-          chartInstance.data.datasets[0].data.push(values[currentIndex]);
-          chartInstance.update();
-          currentIndex++;
-        } else {
-          // Al terminar el trazado, se detiene brevemente y reinicia el bucle
-          clearInterval(loopIntervalId);
-          setTimeout(() => {
-            if (!isHovered) startProgressiveLoop();
-          }, 1500); // Espera 1.5s antes de volver a empezar
-        }
-      }, 200); // Velocidad: añade 1 punto cada 200 ms
-    }
-
-    // Muestra toda la gráfica de golpe al pasar el ratón encima
-    function showFullChart() {
-      if (loopIntervalId) clearInterval(loopIntervalId);
-      const { labels, values } = getChartFullData();
-      chartInstance.data.labels = labels;
-      chartInstance.data.datasets[0].data = values;
-      chartInstance.update();
+      animProgress = 0;
+      startAnimationLoop();
     }
 
     async function loadSessions() {
