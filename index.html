@@ -14,6 +14,7 @@
       --accent-green: #10b981;
       --accent-red: #ef4444;
       --accent-blue: #3b82f6;
+      --accent-yellow: #f59e0b;
       --border-color: #334155;
     }
 
@@ -111,6 +112,22 @@
       background-color: var(--accent-green);
     }
 
+    .btn-cancel {
+      grid-column: 1 / -1;
+      background-color: var(--border-color);
+      display: none;
+    }
+
+    .btn-action {
+      padding: 5px 10px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      margin-right: 4px;
+    }
+
+    .btn-edit { background-color: var(--accent-yellow); color: #000; }
+    .btn-delete { background-color: var(--accent-red); }
+
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -194,8 +211,9 @@
 
     <!-- 2. SESSION FORM BELOW -->
     <div class="card">
-      <h2>Log Session</h2>
+      <h2 id="formTitle">Log Session</h2>
       <form id="pokerForm" class="form-grid">
+        <input type="hidden" id="editIndex" value="-1">
         <div class="form-group">
           <label>Session Date</label>
           <input type="date" id="fecha" required>
@@ -220,7 +238,8 @@
           <label>Notes / Remarks</label>
           <input type="text" id="observaciones" placeholder="Session notes...">
         </div>
-        <button type="submit" class="btn-submit">Save Session</button>
+        <button type="submit" id="btnSave" class="btn-submit">Save Session</button>
+        <button type="button" id="btnCancel" class="btn-cancel" onclick="resetForm()">Cancel Edit</button>
       </form>
     </div>
 
@@ -237,10 +256,11 @@
               <th>Hours</th>
               <th>Result</th>
               <th>Notes</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="tablaHistorial">
-            <tr><td colspan="6" style="text-align:center;">No sessions recorded yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;">No sessions recorded yet.</td></tr>
           </tbody>
         </table>
       </div>
@@ -248,20 +268,19 @@
   </div>
 
   <script>
-    // --- NUEVA URL DE GOOGLE APPS SCRIPT INTEGRADA ---
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw5XuWVdqvhCaUFdJmc8a_Ag6yXQIHrbZ0LZYjJ2csgiESlmzfuydadVJqiviNq5cOyvA/exec";
 
     let chartInstance = null;
     let sesionesData = [];
 
-    // Set today's date by default
     document.getElementById('fecha').valueAsDate = new Date();
 
-    // Save Session
+    // Save or Update Session
     document.getElementById('pokerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const newSession = {
+      const editIndex = parseInt(document.getElementById('editIndex').value);
+      const sessionObj = {
         fecha: document.getElementById('fecha').value,
         nombre: document.getElementById('nombre').value,
         stake: document.getElementById('stake').value,
@@ -270,28 +289,70 @@
         observaciones: document.getElementById('observaciones').value
       };
 
-      // Save locally
-      sesionesData.push(newSession);
-      updateUI();
+      if (editIndex === -1) {
+        // Nueva sesión
+        sesionesData.push(sessionObj);
+      } else {
+        // Edición de sesión existente
+        sesionesData[editIndex] = sessionObj;
+      }
 
-      // Save to cloud
-      document.getElementById('syncStatus').innerText = "⏳ Saving...";
+      updateUI();
+      const isEditing = editIndex !== -1;
+      resetForm();
+
+      // Guardar todo el conjunto de sesiones en la nube
+      syncAllToCloud(isEditing ? "Updated" : "Saved");
+    });
+
+    function editSession(index) {
+      const s = sesionesData[index];
+      document.getElementById('editIndex').value = index;
+      document.getElementById('fecha').value = s.fecha;
+      document.getElementById('nombre').value = s.nombre;
+      document.getElementById('stake').value = s.stake;
+      document.getElementById('horas').value = s.horas;
+      document.getElementById('resultado').value = s.resultado;
+      document.getElementById('observaciones').value = s.observaciones || '';
+
+      document.getElementById('formTitle').innerText = "Edit Session";
+      document.getElementById('btnSave').innerText = "Update Session";
+      document.getElementById('btnCancel').style.display = "block";
+
+      document.getElementById('pokerForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function deleteSession(index) {
+      if (!confirm("Are you sure you want to delete this session?")) return;
+      
+      sesionesData.splice(index, 1);
+      updateUI();
+      syncAllToCloud("Deleted");
+    }
+
+    function resetForm() {
+      document.getElementById('pokerForm').reset();
+      document.getElementById('editIndex').value = "-1";
+      document.getElementById('fecha').valueAsDate = new Date();
+      document.getElementById('formTitle').innerText = "Log Session";
+      document.getElementById('btnSave').innerText = "Save Session";
+      document.getElementById('btnCancel').style.display = "none";
+    }
+
+    async function syncAllToCloud(actionText = "Synced") {
+      document.getElementById('syncStatus').innerText = "⏳ Syncing...";
       try {
         await fetch(SCRIPT_URL, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newSession)
+          body: JSON.stringify({ action: "OVERWRITE_ALL", data: sesionesData })
         });
-        document.getElementById('syncStatus').innerText = "✅ Synced";
+        document.getElementById('syncStatus').innerText = `✅ ${actionText}`;
       } catch (err) {
         document.getElementById('syncStatus').innerText = "⚠️ Sync Error";
       }
-
-      // Reset form fields except date
-      document.getElementById('pokerForm').reset();
-      document.getElementById('fecha').valueAsDate = new Date();
-    });
+    }
 
     function updateUI() {
       renderTable();
@@ -302,11 +363,12 @@
     function renderTable() {
       const tbody = document.getElementById('tablaHistorial');
       if (sesionesData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No sessions recorded yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No sessions recorded yet.</td></tr>';
         return;
       }
 
-      tbody.innerHTML = [...sesionesData].reverse().map(s => `
+      // Orden inverso para mostrar las más recientes primero
+      tbody.innerHTML = sesionesData.map((s, idx) => ({ s, idx })).reverse().map(({ s, idx }) => `
         <tr>
           <td>${s.fecha}</td>
           <td>${s.nombre}</td>
@@ -316,6 +378,10 @@
             ${s.resultado >= 0 ? '+' : ''}$${s.resultado.toFixed(2)}
           </td>
           <td>${s.observaciones || '-'}</td>
+          <td>
+            <button class="btn-action btn-edit" onclick="editSession(${idx})">✏️</button>
+            <button class="btn-action btn-delete" onclick="deleteSession(${idx})">🗑️</button>
+          </td>
         </tr>
       `).join('');
     }
@@ -383,7 +449,8 @@
       document.getElementById('syncStatus').innerText = "🔄 Loading...";
       try {
         const res = await fetch(SCRIPT_URL);
-        sesionesData = await res.json();
+        const data = await res.json();
+        sesionesData = Array.isArray(data) ? data : [];
         updateUI();
         document.getElementById('syncStatus').innerText = "✅ Synced";
       } catch (e) {
@@ -391,7 +458,6 @@
       }
     }
 
-    // Load on start
     loadSessions();
   </script>
 </body>
