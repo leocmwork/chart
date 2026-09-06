@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -292,12 +292,12 @@
 
     let chartInstance = null;
     let sesionesData = [];
-    let animationTimer = null;
     let isHovered = false;
+    let animationLoopId = null;
 
     document.getElementById('fecha').valueAsDate = new Date();
 
-    // Pausar re-animación mientras el usuario tiene el ratón sobre el gráfico
+    // Pausa la animación si colocas el cursor sobre la gráfica para ver los tooltips
     const heroElem = document.getElementById('chartHeroArea');
     heroElem.addEventListener('mouseenter', () => isHovered = true);
     heroElem.addEventListener('mouseleave', () => isHovered = false);
@@ -435,7 +435,7 @@
       });
 
       if (chartInstance) chartInstance.destroy();
-      if (animationTimer) clearInterval(animationTimer);
+      if (animationLoopId) clearInterval(animationLoopId);
 
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
       const isPositive = cumulative >= 0;
@@ -449,6 +449,38 @@
       }
 
       const mainColor = isPositive ? '#10b981' : '#f43f5e';
+
+      // Función que activa el dibujado desde el inicio
+      const triggerProgressiveAnimation = () => {
+        if (!chartInstance) return;
+        
+        const totalPoints = data.length;
+        const totalDuration = 3500; // Tiempo en ms que tarda en dibujarse toda la línea
+        const delayPerPoint = totalDuration / Math.max(totalPoints, 1);
+
+        chartInstance.options.animation = {
+          x: {
+            type: 'number',
+            easing: 'easeOutQuart',
+            duration: delayPerPoint * 2,
+            from: NaN,
+            delay(ctx) {
+              if (ctx.type !== 'data' || ctx.xStarted) return 0;
+              ctx.xStarted = true;
+              return ctx.index * delayPerPoint;
+            }
+          },
+          y: {
+            type: 'number',
+            easing: 'easeOutQuart',
+            duration: delayPerPoint * 2
+          }
+        };
+
+        // Resetea las posiciones y vuelve a animar
+        chartInstance.reset();
+        chartInstance.update();
+      };
 
       chartInstance = new Chart(ctx, {
         type: 'line',
@@ -475,10 +507,6 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: {
-            duration: 2200, // Duración del dibujado en ms
-            easing: 'easeInOutQuart'
-          },
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -514,12 +542,16 @@
         }
       });
 
-      // Repetir la animación de dibujado cada 8 segundos (si el ratón no está encima)
-      animationTimer = setInterval(() => {
-        if (chartInstance && !isHovered) {
-          chartInstance.update();
+      // Primer trazado
+      triggerProgressiveAnimation();
+
+      // BUCLE CONSTANTE: Reinicia la animación progresiva en cuanto termina la anterior
+      const loopInterval = 4200; // Duración total del ciclo (animación + breve pausa)
+      animationLoopId = setInterval(() => {
+        if (!isHovered) {
+          triggerProgressiveAnimation();
         }
-      }, 8000);
+      }, loopInterval);
     }
 
     async function loadSessions() {
