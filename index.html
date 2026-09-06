@@ -296,8 +296,10 @@
     let animationLoopId = null;
 
     let globalAnimProgress = 0;
-    const LOOP_DURATION = 3500;  // Tiempo de dibujado (ms)
-    const PAUSE_DURATION = 1200; // Tiempo de pausa al completar (ms)
+    
+    // Configuración de duración total: ~15 segundos (13.5s dibujo + 1.5s pausa)
+    const LOOP_DURATION = 13500; 
+    const PAUSE_DURATION = 1500;  
 
     document.getElementById('fecha').valueAsDate = new Date();
 
@@ -445,11 +447,9 @@
 
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
       if (isPositive) {
-        // Alto contraste y opacidad verde
         gradient.addColorStop(0, 'rgba(16, 185, 129, 0.85)');
         gradient.addColorStop(1, 'rgba(16, 185, 129, 0.35)');
       } else {
-        // Alto contraste y opacidad roja
         gradient.addColorStop(0, 'rgba(244, 63, 94, 0.85)');
         gradient.addColorStop(1, 'rgba(244, 63, 94, 0.35)');
       }
@@ -487,8 +487,8 @@
             backgroundColor: gradient,
             fill: true,
             tension: 0.35,
-            pointRadius: 0,       // Sin puntos visibles
-            pointHoverRadius: 0  // Sin puntos al pasar el ratón
+            pointRadius: 0,
+            pointHoverRadius: 0
           }]
         },
         plugins: [progressiveLoopPlugin],
@@ -540,7 +540,7 @@
 
         if (elapsed <= LOOP_DURATION) {
           let t = elapsed / LOOP_DURATION;
-          globalAnimProgress = 1 - Math.pow(1 - t, 4);
+          globalAnimProgress = 1 - Math.pow(1 - t, 3);
         } else {
           globalAnimProgress = 1;
         }
