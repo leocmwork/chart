@@ -445,12 +445,13 @@
 
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
       if (isPositive) {
-        // Mayor opacidad para que el verde sea más visible e intenso
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.75)');
-        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.20)');
+        // Alto contraste y opacidad verde
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.85)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.35)');
       } else {
-        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.75)');
-        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.20)');
+        // Alto contraste y opacidad roja
+        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.85)');
+        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.35)');
       }
 
       const progressiveLoopPlugin = {
@@ -486,11 +487,8 @@
             backgroundColor: gradient,
             fill: true,
             tension: 0.35,
-            pointRadius: 0,
-            pointHoverRadius: 6,
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: mainColor,
-            pointHoverBorderWidth: 3
+            pointRadius: 0,       // Sin puntos visibles
+            pointHoverRadius: 0  // Sin puntos al pasar el ratón
           }]
         },
         plugins: [progressiveLoopPlugin],
