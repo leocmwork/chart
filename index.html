@@ -293,14 +293,40 @@
     let chartInstance = null;
     let sesionesData = [];
     let isHovered = false;
-    let animationLoopId = null;
+    let animProgress = 0; // Estado del avance (0.0 a 1.0)
+    let animationFrameReq = null;
 
     document.getElementById('fecha').valueAsDate = new Date();
 
-    // Pausa la animación si colocas el cursor sobre la gráfica para ver los tooltips
+    // Pausar animación y mostrar todo el gráfico si el usuario entra con el ratón
     const heroElem = document.getElementById('chartHeroArea');
     heroElem.addEventListener('mouseenter', () => isHovered = true);
     heroElem.addEventListener('mouseleave', () => isHovered = false);
+
+    // PLUGIN CUSTOM DE ANIMACIÓN CONTINUA (Máxima Fiabilidad)
+    const progressiveLoopPlugin = {
+      id: 'progressiveLoopPlugin',
+      beforeDatasetsDraw(chart) {
+        if (isHovered) return; // Si hay interactividad, mostrar completo
+
+        const { ctx, chartArea } = chart;
+        const width = chartArea.right - chartArea.left;
+        const currentClipWidth = width * animProgress;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(chartArea.left, chartArea.top - 10, currentClipWidth, chartArea.height + 20);
+        ctx.clip();
+      },
+      afterDatasetsDraw(chart) {
+        if (isHovered) return;
+        const { ctx } = chart;
+        ctx.restore();
+      }
+    };
+
+    // Registrar plugin en Chart.js
+    Chart.register(progressiveLoopPlugin);
 
     document.getElementById('pokerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -323,7 +349,6 @@
 
       updateUI();
       resetForm();
-
       syncAllToCloud();
     });
 
@@ -421,6 +446,35 @@
       elWinrate.className = `stat-value ${winrate >= 0 ? 'positive' : 'negative'}`;
     }
 
+    function startAnimationLoop() {
+      if (animationFrameReq) cancelAnimationFrame(animationFrameReq);
+
+      let lastTime = performance.now();
+      const speed = 0.00035; // Controla la velocidad del trazado progresivo (mayor número = más rápido)
+
+      function loop(time) {
+        const delta = time - lastTime;
+        lastTime = time;
+
+        if (!isHovered) {
+          animProgress += delta * speed;
+          if (animProgress > 1.25) { // Espera un pequeño instante al final antes de reiniciar
+            animProgress = 0;
+          }
+          if (chartInstance) {
+            chartInstance.draw();
+          }
+        } else {
+          animProgress = 1.0;
+          if (chartInstance) chartInstance.draw();
+        }
+
+        animationFrameReq = requestAnimationFrame(loop);
+      }
+
+      animationFrameReq = requestAnimationFrame(loop);
+    }
+
     function renderChart() {
       const ctx = document.getElementById('bankrollChart').getContext('2d');
       
@@ -435,7 +489,6 @@
       });
 
       if (chartInstance) chartInstance.destroy();
-      if (animationLoopId) clearInterval(animationLoopId);
 
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
       const isPositive = cumulative >= 0;
@@ -449,38 +502,6 @@
       }
 
       const mainColor = isPositive ? '#10b981' : '#f43f5e';
-
-      // Función que activa el dibujado desde el inicio
-      const triggerProgressiveAnimation = () => {
-        if (!chartInstance) return;
-        
-        const totalPoints = data.length;
-        const totalDuration = 3500; // Tiempo en ms que tarda en dibujarse toda la línea
-        const delayPerPoint = totalDuration / Math.max(totalPoints, 1);
-
-        chartInstance.options.animation = {
-          x: {
-            type: 'number',
-            easing: 'easeOutQuart',
-            duration: delayPerPoint * 2,
-            from: NaN,
-            delay(ctx) {
-              if (ctx.type !== 'data' || ctx.xStarted) return 0;
-              ctx.xStarted = true;
-              return ctx.index * delayPerPoint;
-            }
-          },
-          y: {
-            type: 'number',
-            easing: 'easeOutQuart',
-            duration: delayPerPoint * 2
-          }
-        };
-
-        // Resetea las posiciones y vuelve a animar
-        chartInstance.reset();
-        chartInstance.update();
-      };
 
       chartInstance = new Chart(ctx, {
         type: 'line',
@@ -507,6 +528,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: false, // Desactivamos animaciones internas para control total por loop
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -542,16 +564,8 @@
         }
       });
 
-      // Primer trazado
-      triggerProgressiveAnimation();
-
-      // BUCLE CONSTANTE: Reinicia la animación progresiva en cuanto termina la anterior
-      const loopInterval = 4200; // Duración total del ciclo (animación + breve pausa)
-      animationLoopId = setInterval(() => {
-        if (!isHovered) {
-          triggerProgressiveAnimation();
-        }
-      }, loopInterval);
+      animProgress = 0;
+      startAnimationLoop();
     }
 
     async function loadSessions() {
