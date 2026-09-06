@@ -207,6 +207,7 @@
 
   <div class="container">
     
+    <!-- 1. HERO CHART & STATS -->
     <div class="card">
       <div class="stats-grid">
         <div class="stat-box">
@@ -228,6 +229,7 @@
       </div>
     </div>
 
+    <!-- 2. SESSION FORM -->
     <div class="card">
       <h2 id="formTitle">📝 Log Session</h2>
       <form id="pokerForm" class="form-grid">
@@ -260,3 +262,323 @@
         <button type="button" id="btnCancel" class="btn-cancel" onclick="resetForm()">Cancel Edit</button>
       </form>
     </div>
+
+    <!-- 3. HISTORY TABLE -->
+    <div class="card">
+      <h2>📊 Session History</h2>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Session</th>
+              <th>Stakes</th>
+              <th>Hours</th>
+              <th>Result</th>
+              <th>Notes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tablaHistorial">
+            <tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No sessions recorded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw5XuWVdqvhCaUFdJmc8a_Ag6yXQIHrbZ0LZYjJ2csgiESlmzfuydadVJqiviNq5cOyvA/exec";
+
+    let chartInstance = null;
+    let sesionesData = [];
+    let isHovered = false;
+    let loopIntervalId = null;
+
+    document.getElementById('fecha').valueAsDate = new Date();
+
+    // Eventos de ratón para congelar la animación cuando interactúas
+    const heroElem = document.getElementById('chartHeroArea');
+    heroElem.addEventListener('mouseenter', () => {
+      isHovered = true;
+      showFullChart();
+    });
+    heroElem.addEventListener('mouseleave', () => {
+      isHovered = false;
+      startProgressiveLoop();
+    });
+
+    document.getElementById('pokerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const editIndex = parseInt(document.getElementById('editIndex').value);
+      const sessionObj = {
+        fecha: document.getElementById('fecha').value,
+        nombre: document.getElementById('nombre').value,
+        stake: document.getElementById('stake').value,
+        horas: parseFloat(document.getElementById('horas').value),
+        resultado: parseFloat(document.getElementById('resultado').value),
+        observaciones: document.getElementById('observaciones').value
+      };
+
+      if (editIndex === -1) {
+        sesionesData.push(sessionObj);
+      } else {
+        sesionesData[editIndex] = sessionObj;
+      }
+
+      updateUI();
+      resetForm();
+      syncAllToCloud();
+    });
+
+    function editSession(index) {
+      const s = sesionesData[index];
+      document.getElementById('editIndex').value = index;
+      document.getElementById('fecha').value = s.fecha;
+      document.getElementById('nombre').value = s.nombre;
+      document.getElementById('stake').value = s.stake;
+      document.getElementById('horas').value = s.horas;
+      document.getElementById('resultado').value = s.resultado;
+      document.getElementById('observaciones').value = s.observaciones || '';
+
+      document.getElementById('formTitle').innerText = "✏️ Edit Session";
+      document.getElementById('btnSave').innerText = "Update Session";
+      document.getElementById('btnCancel').style.display = "block";
+
+      document.getElementById('pokerForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function deleteSession(index) {
+      if (!confirm("Are you sure you want to delete this session?")) return;
+      
+      sesionesData.splice(index, 1);
+      updateUI();
+      syncAllToCloud();
+    }
+
+    function resetForm() {
+      document.getElementById('pokerForm').reset();
+      document.getElementById('editIndex').value = "-1";
+      document.getElementById('fecha').valueAsDate = new Date();
+      document.getElementById('formTitle').innerText = "📝 Log Session";
+      document.getElementById('btnSave').innerText = "Save Session";
+      document.getElementById('btnCancel').style.display = "none";
+    }
+
+    async function syncAllToCloud() {
+      try {
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: "OVERWRITE_ALL", data: sesionesData })
+        });
+      } catch (err) {
+        console.error("Sync error", err);
+      }
+    }
+
+    function updateUI() {
+      renderTable();
+      renderStats();
+      initChart();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('tablaHistorial');
+      if (sesionesData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No sessions recorded yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = sesionesData.map((s, idx) => ({ s, idx })).reverse().map(({ s, idx }) => `
+        <tr>
+          <td>${s.fecha}</td>
+          <td style="font-weight:600;">${s.nombre}</td>
+          <td><span style="background:rgba(255,255,255,0.06); padding:3px 8px; border-radius:4px; font-size:0.8rem;">${s.stake}</span></td>
+          <td>${s.horas}h</td>
+          <td class="${s.resultado >= 0 ? 'positive' : 'negative'}" style="font-weight:700;">
+            ${s.resultado >= 0 ? '+' : ''}$${s.resultado.toFixed(2)}
+          </td>
+          <td style="color:var(--text-muted);">${s.observaciones || '-'}</td>
+          <td>
+            <button class="btn-action btn-edit" onclick="editSession(${idx})">✏️</button>
+            <button class="btn-action btn-delete" onclick="deleteSession(${idx})">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderStats() {
+      const totalHours = sesionesData.reduce((acc, s) => acc + s.horas, 0);
+      const totalProfit = sesionesData.reduce((acc, s) => acc + s.resultado, 0);
+      const winrate = totalHours > 0 ? (totalProfit / totalHours) : 0;
+
+      document.getElementById('statHoras').innerText = totalHours.toFixed(1);
+      
+      const elProfit = document.getElementById('statBeneficio');
+      elProfit.innerText = `${totalProfit >= 0 ? '+' : ''}$${totalProfit.toFixed(2)}`;
+      elProfit.className = `stat-value ${totalProfit >= 0 ? 'positive' : 'negative'}`;
+
+      const elWinrate = document.getElementById('statWinrate');
+      elWinrate.innerText = `$${winrate.toFixed(2)}/h`;
+      elWinrate.className = `stat-value ${winrate >= 0 ? 'positive' : 'negative'}`;
+    }
+
+    // Prepara los datos acumulados
+    function getChartFullData() {
+      let cumulative = 0;
+      const labels = ['Start'];
+      const values = [0];
+
+      sesionesData.forEach((s, index) => {
+        cumulative += s.resultado;
+        labels.push(`S${index + 1}`);
+        values.push(cumulative);
+      });
+
+      return { labels, values, cumulative };
+    }
+
+    // Inicializa el gráfico base en blanco
+    function initChart() {
+      const ctx = document.getElementById('bankrollChart').getContext('2d');
+      const { cumulative } = getChartFullData();
+
+      if (chartInstance) chartInstance.destroy();
+      if (loopIntervalId) clearInterval(loopIntervalId);
+
+      const isPositive = cumulative >= 0;
+      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+      
+      if (isPositive) {
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+      } else {
+        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.4)');
+        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
+      }
+
+      const mainColor = isPositive ? '#10b981' : '#f43f5e';
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Bankroll ($)',
+            data: [],
+            borderColor: mainColor,
+            borderWidth: 3,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: mainColor,
+            pointBorderColor: '#0b0f17',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: mainColor,
+            pointHoverBorderWidth: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 300 }, // Suaviza la unión entre puntos
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              titleColor: '#94a3b8',
+              bodyColor: '#f8fafc',
+              bodyFont: { weight: 'bold', size: 14 },
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false,
+              callbacks: {
+                label: function(context) {
+                  return `Bankroll: $${context.parsed.y.toFixed(2)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { 
+              grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, 
+              ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } } 
+            },
+            y: { 
+              grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, 
+              ticks: { 
+                color: '#64748b', 
+                font: { family: 'Inter', size: 11 },
+                callback: function(value) { return '$' + value; }
+              } 
+            }
+          }
+        }
+      });
+
+      startProgressiveLoop();
+    }
+
+    // BUCLE PROGRESIVO DE DIBUJADO PUNTO POR PUNTO
+    function startProgressiveLoop() {
+      if (loopIntervalId) clearInterval(loopIntervalId);
+      if (isHovered) return;
+
+      const { labels, values } = getChartFullData();
+      let currentIndex = 0;
+
+      // Limpia la gráfica para empezar a dibujar
+      chartInstance.data.labels = [];
+      chartInstance.data.datasets[0].data = [];
+      chartInstance.update('none');
+
+      loopIntervalId = setInterval(() => {
+        if (isHovered) return;
+
+        if (currentIndex < labels.length) {
+          // Añade el siguiente punto progresivamente
+          chartInstance.data.labels.push(labels[currentIndex]);
+          chartInstance.data.datasets[0].data.push(values[currentIndex]);
+          chartInstance.update();
+          currentIndex++;
+        } else {
+          // Al terminar el trazado, se detiene brevemente y reinicia el bucle
+          clearInterval(loopIntervalId);
+          setTimeout(() => {
+            if (!isHovered) startProgressiveLoop();
+          }, 1500); // Espera 1.5s antes de volver a empezar
+        }
+      }, 200); // Velocidad: añade 1 punto cada 200 ms
+    }
+
+    // Muestra toda la gráfica de golpe al pasar el ratón encima
+    function showFullChart() {
+      if (loopIntervalId) clearInterval(loopIntervalId);
+      const { labels, values } = getChartFullData();
+      chartInstance.data.labels = labels;
+      chartInstance.data.datasets[0].data = values;
+      chartInstance.update();
+    }
+
+    async function loadSessions() {
+      try {
+        const res = await fetch(SCRIPT_URL);
+        const data = await res.json();
+        sesionesData = Array.isArray(data) ? data : [];
+        updateUI();
+      } catch (e) {
+        console.error("Load error", e);
+      }
+    }
+
+    loadSessions();
+  </script>
+</body>
+</html>
