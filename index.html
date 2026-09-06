@@ -6,53 +6,113 @@
   <title>Poker Bankroll Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
     :root {
-      --bg-color: #121824;
-      --card-bg: #1e293b;
+      --bg-color: #0b0f17;
+      --card-bg: rgba(22, 30, 46, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
       --text-main: #f8fafc;
-      --text-muted: #94a3b8;
+      --text-muted: #64748b;
       --accent-green: #10b981;
-      --accent-red: #ef4444;
+      --accent-green-glow: rgba(16, 185, 129, 0.3);
+      --accent-red: #f43f5e;
       --accent-blue: #3b82f6;
-      --accent-yellow: #f59e0b;
-      --border-color: #334155;
+      --accent-purple: #8b5cf6;
+      --border-color: #1e293b;
     }
 
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
       background-color: var(--bg-color);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
       color: var(--text-main);
       margin: 0;
-      padding: 20px;
+      padding: 24px 16px;
     }
 
     .container {
-      max-width: 1000px;
+      max-width: 1050px;
       margin: 0 auto;
     }
 
     .card {
-      background-color: var(--card-bg);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 25px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
     }
 
-    /* CHART HERO CONTAINER */
+    /* STATS DASHBOARD */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-box {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 18px 20px;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .stat-box:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 1.85rem;
+      font-weight: 800;
+      margin-top: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .positive { color: var(--accent-green); text-shadow: 0 0 20px var(--accent-green-glow); }
+    .negative { color: var(--accent-red); }
+
+    /* CHART CONTAINER */
     .chart-hero {
       position: relative;
-      height: 420px;
+      height: 440px;
       width: 100%;
-      margin-top: 15px;
     }
 
-    h2 { margin-top: 0; font-size: 1.25rem; color: var(--text-main); }
+    h2 { 
+      margin-top: 0; 
+      font-size: 1.15rem; 
+      font-weight: 700;
+      color: var(--text-main); 
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
     .form-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 15px;
+      gap: 16px;
     }
 
     .form-group {
@@ -61,37 +121,48 @@
     }
 
     label {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
-      margin-bottom: 5px;
+      margin-bottom: 6px;
+      font-weight: 500;
     }
 
-    input, select, textarea {
-      background-color: var(--bg-color);
+    input, select {
+      background-color: rgba(15, 23, 42, 0.8);
       border: 1px solid var(--border-color);
       color: white;
-      padding: 10px;
-      border-radius: 6px;
+      padding: 12px;
+      border-radius: 8px;
       font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--accent-blue);
     }
 
     button {
       background-color: var(--accent-blue);
       color: white;
       border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-weight: bold;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 700;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
 
-    button:hover { opacity: 0.9; }
+    button:hover { 
+      opacity: 0.95; 
+      transform: translateY(-1px);
+    }
 
     .btn-submit {
       grid-column: 1 / -1;
       margin-top: 10px;
-      background-color: var(--accent-green);
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);
     }
 
     .btn-cancel {
@@ -101,37 +172,14 @@
     }
 
     .btn-action {
-      padding: 5px 10px;
+      padding: 6px 10px;
       font-size: 0.8rem;
-      border-radius: 4px;
+      border-radius: 6px;
       margin-right: 4px;
     }
 
-    .btn-edit { background-color: var(--accent-yellow); color: #000; }
-    .btn-delete { background-color: var(--accent-red); }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .stat-box {
-      background-color: var(--bg-color);
-      padding: 15px;
-      border-radius: 8px;
-      text-align: center;
-    }
-
-    .stat-value {
-      font-size: 1.6rem;
-      font-weight: bold;
-      margin-top: 5px;
-    }
-
-    .positive { color: var(--accent-green); }
-    .negative { color: var(--accent-red); }
+    .btn-edit { background-color: var(--accent-purple); color: #fff; }
+    .btn-delete { background-color: rgba(244, 63, 94, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
 
     table {
       width: 100%;
@@ -141,43 +189,49 @@
     }
 
     th, td {
-      padding: 12px;
+      padding: 14px 12px;
       text-align: left;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--card-border);
     }
 
-    th { color: var(--text-muted); background-color: rgba(0,0,0,0.2); }
+    th { 
+      color: var(--text-muted); 
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
     
-    <!-- 1. HERO CHART & STATS FIRST (NO HEADER) -->
+    <!-- 1. HERO CHART & STATS -->
     <div class="card">
       <div class="stats-grid">
         <div class="stat-box">
-          <label>Total Hours</label>
+          <div class="stat-label">Total Hours</div>
           <div class="stat-value" id="statHoras">0.0</div>
         </div>
         <div class="stat-box">
-          <label>Total Profit</label>
+          <div class="stat-label">Total Profit</div>
           <div class="stat-value" id="statBeneficio">$0.00</div>
         </div>
         <div class="stat-box">
-          <label>Winrate ($/h)</label>
+          <div class="stat-label">Winrate ($/h)</div>
           <div class="stat-value" id="statWinrate">$0.00/h</div>
         </div>
       </div>
 
-      <div class="chart-hero">
+      <div class="chart-hero" id="chartHeroArea">
         <canvas id="bankrollChart"></canvas>
       </div>
     </div>
 
-    <!-- 2. SESSION FORM BELOW -->
+    <!-- 2. SESSION FORM -->
     <div class="card">
-      <h2 id="formTitle">Log Session</h2>
+      <h2 id="formTitle">📝 Log Session</h2>
       <form id="pokerForm" class="form-grid">
         <input type="hidden" id="editIndex" value="-1">
         <div class="form-group">
@@ -209,9 +263,9 @@
       </form>
     </div>
 
-    <!-- 3. HISTORY TABLE LAST -->
+    <!-- 3. HISTORY TABLE -->
     <div class="card">
-      <h2>Session History</h2>
+      <h2>📊 Session History</h2>
       <div style="overflow-x:auto;">
         <table>
           <thead>
@@ -226,7 +280,7 @@
             </tr>
           </thead>
           <tbody id="tablaHistorial">
-            <tr><td colspan="7" style="text-align:center;">No sessions recorded yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No sessions recorded yet.</td></tr>
           </tbody>
         </table>
       </div>
@@ -238,10 +292,16 @@
 
     let chartInstance = null;
     let sesionesData = [];
+    let animationTimer = null;
+    let isHovered = false;
 
     document.getElementById('fecha').valueAsDate = new Date();
 
-    // Save or Update Session
+    // Pausar re-animación mientras el usuario tiene el ratón sobre el gráfico
+    const heroElem = document.getElementById('chartHeroArea');
+    heroElem.addEventListener('mouseenter', () => isHovered = true);
+    heroElem.addEventListener('mouseleave', () => isHovered = false);
+
     document.getElementById('pokerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -277,7 +337,7 @@
       document.getElementById('resultado').value = s.resultado;
       document.getElementById('observaciones').value = s.observaciones || '';
 
-      document.getElementById('formTitle').innerText = "Edit Session";
+      document.getElementById('formTitle').innerText = "✏️ Edit Session";
       document.getElementById('btnSave').innerText = "Update Session";
       document.getElementById('btnCancel').style.display = "block";
 
@@ -296,7 +356,7 @@
       document.getElementById('pokerForm').reset();
       document.getElementById('editIndex').value = "-1";
       document.getElementById('fecha').valueAsDate = new Date();
-      document.getElementById('formTitle').innerText = "Log Session";
+      document.getElementById('formTitle').innerText = "📝 Log Session";
       document.getElementById('btnSave').innerText = "Save Session";
       document.getElementById('btnCancel').style.display = "none";
     }
@@ -323,20 +383,20 @@
     function renderTable() {
       const tbody = document.getElementById('tablaHistorial');
       if (sesionesData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No sessions recorded yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No sessions recorded yet.</td></tr>';
         return;
       }
 
       tbody.innerHTML = sesionesData.map((s, idx) => ({ s, idx })).reverse().map(({ s, idx }) => `
         <tr>
           <td>${s.fecha}</td>
-          <td>${s.nombre}</td>
-          <td>${s.stake}</td>
+          <td style="font-weight:600;">${s.nombre}</td>
+          <td><span style="background:rgba(255,255,255,0.06); padding:3px 8px; border-radius:4px; font-size:0.8rem;">${s.stake}</span></td>
           <td>${s.horas}h</td>
-          <td class="${s.resultado >= 0 ? 'positive' : 'negative'}">
+          <td class="${s.resultado >= 0 ? 'positive' : 'negative'}" style="font-weight:700;">
             ${s.resultado >= 0 ? '+' : ''}$${s.resultado.toFixed(2)}
           </td>
-          <td>${s.observaciones || '-'}</td>
+          <td style="color:var(--text-muted);">${s.observaciones || '-'}</td>
           <td>
             <button class="btn-action btn-edit" onclick="editSession(${idx})">✏️</button>
             <button class="btn-action btn-delete" onclick="deleteSession(${idx})">🗑️</button>
@@ -375,6 +435,20 @@
       });
 
       if (chartInstance) chartInstance.destroy();
+      if (animationTimer) clearInterval(animationTimer);
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+      const isPositive = cumulative >= 0;
+      
+      if (isPositive) {
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+      } else {
+        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.4)');
+        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
+      }
+
+      const mainColor = isPositive ? '#10b981' : '#f43f5e';
 
       chartInstance = new Chart(ctx, {
         type: 'line',
@@ -383,23 +457,69 @@
           datasets: [{
             label: 'Bankroll ($)',
             data: data,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+            borderColor: mainColor,
             borderWidth: 3,
+            backgroundColor: gradient,
             fill: true,
-            tension: 0.2
+            tension: 0.35,
+            pointBackgroundColor: mainColor,
+            pointBorderColor: '#0b0f17',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: mainColor,
+            pointHoverBorderWidth: 3
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          animation: {
+            duration: 2200, // Duración del dibujado en ms
+            easing: 'easeInOutQuart'
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              titleColor: '#94a3b8',
+              bodyColor: '#f8fafc',
+              bodyFont: { weight: 'bold', size: 14 },
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false,
+              callbacks: {
+                label: function(context) {
+                  return `Bankroll: $${context.parsed.y.toFixed(2)}`;
+                }
+              }
+            }
+          },
           scales: {
-            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
-            y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+            x: { 
+              grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, 
+              ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } } 
+            },
+            y: { 
+              grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, 
+              ticks: { 
+                color: '#64748b', 
+                font: { family: 'Inter', size: 11 },
+                callback: function(value) { return '$' + value; }
+              } 
+            }
           }
         }
       });
+
+      // Repetir la animación de dibujado cada 8 segundos (si el ratón no está encima)
+      animationTimer = setInterval(() => {
+        if (chartInstance && !isHovered) {
+          chartInstance.update();
+        }
+      }, 8000);
     }
 
     async function loadSessions() {
