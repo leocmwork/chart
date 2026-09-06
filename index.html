@@ -296,12 +296,11 @@
     let animationLoopId = null;
 
     let globalAnimProgress = 0;
-    const LOOP_DURATION = 3500;  // Duración del trazado en milisegundos
-    const PAUSE_DURATION = 1000; // Pausa antes de volver a empezar el bucle
+    const LOOP_DURATION = 3500;  // Tiempo de dibujado (ms)
+    const PAUSE_DURATION = 1200; // Tiempo de pausa al completar (ms)
 
     document.getElementById('fecha').valueAsDate = new Date();
 
-    // Pausa la animación si colocas el cursor sobre la gráfica para ver los tooltips
     const heroElem = document.getElementById('chartHeroArea');
     heroElem.addEventListener('mouseenter', () => isHovered = true);
     heroElem.addEventListener('mouseleave', () => isHovered = false);
@@ -453,9 +452,13 @@
         gradient.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
       }
 
-      // PLUGIN DE REVELADO PROGRESIVO DE ALTO RENDIMIENTO (COMPATIBLE CON OBS)
+      // PLUGIN CORREGIDO: Limpia el canvas en cada fotograma para crear el efecto trazado progresivo real
       const progressiveLoopPlugin = {
         id: 'progressiveLoopPlugin',
+        beforeRender(chart) {
+          const { ctx } = chart;
+          ctx.clearRect(0, 0, chart.width, chart.height);
+        },
         beforeDatasetsDraw(chart) {
           const { ctx, chartArea } = chart;
           if (!chartArea) return;
@@ -497,7 +500,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: false, // Desactivamos la animación interna de Chart.js
+          animation: false,
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -533,7 +536,7 @@
         }
       });
 
-      // BUCLE INFINITO CONTINUO USANDO REQUESTANIMATIONFRAME (60 FPS NATIVOS EN OBS)
+      // BUCLE ANIMADO FLUIDO
       let totalCycleTime = LOOP_DURATION + PAUSE_DURATION;
       let startTime = null;
 
@@ -543,17 +546,17 @@
 
         if (elapsed <= LOOP_DURATION) {
           let t = elapsed / LOOP_DURATION;
-          globalAnimProgress = 1 - Math.pow(1 - t, 4); // Transición fluida easeOutQuart
+          globalAnimProgress = 1 - Math.pow(1 - t, 4); // Transición progresiva
         } else {
-          globalAnimProgress = 1; // Pausa mostrando el trazado completo
+          globalAnimProgress = 1; // Pausa antes de reiniciar
         }
 
         if (isHovered) {
-          globalAnimProgress = 1; // Si hay interactividad del mouse se congela al 100%
+          globalAnimProgress = 1;
         }
 
         if (chartInstance) {
-          chartInstance.draw();
+          chartInstance.render();
         }
 
         animationLoopId = requestAnimationFrame(loopStep);
