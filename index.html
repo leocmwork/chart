@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Poker Cash Tracker</title>
+  <title>Poker Bankroll Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -26,7 +26,7 @@
     }
 
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
     }
 
@@ -34,7 +34,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 25px;
       padding-bottom: 15px;
       border-bottom: 1px solid var(--border-color);
     }
@@ -54,6 +54,14 @@
       padding: 20px;
       margin-bottom: 25px;
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+    }
+
+    /* CHART HERO CONTAINER */
+    .chart-hero {
+      position: relative;
+      height: 420px;
+      width: 100%;
+      margin-top: 15px;
     }
 
     h2 { margin-top: 0; font-size: 1.25rem; color: var(--text-main); }
@@ -118,7 +126,7 @@
     }
 
     .stat-value {
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       font-weight: bold;
       margin-top: 5px;
     }
@@ -156,7 +164,35 @@
       </div>
     </header>
 
-    <!-- SESSION FORM -->
+    <!-- 1. HERO CHART & STATS FIRST -->
+    <div class="card">
+      <h2>Bankroll Progression</h2>
+      
+      <div class="stats-grid">
+        <div class="stat-box">
+          <label>Total Sessions</label>
+          <div class="stat-value" id="statSesiones">0</div>
+        </div>
+        <div class="stat-box">
+          <label>Total Hours</label>
+          <div class="stat-value" id="statHoras">0.0</div>
+        </div>
+        <div class="stat-box">
+          <label>Total Profit</label>
+          <div class="stat-value" id="statBeneficio">$0.00</div>
+        </div>
+        <div class="stat-box">
+          <label>Winrate ($/h)</label>
+          <div class="stat-value" id="statWinrate">$0.00/h</div>
+        </div>
+      </div>
+
+      <div class="chart-hero">
+        <canvas id="bankrollChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 2. SESSION FORM BELOW -->
     <div class="card">
       <h2>Log Session</h2>
       <form id="pokerForm" class="form-grid">
@@ -188,33 +224,7 @@
       </form>
     </div>
 
-    <!-- STATS & CHART -->
-    <div class="card">
-      <h2>Bankroll Progression</h2>
-      
-      <div class="stats-grid">
-        <div class="stat-box">
-          <label>Total Sessions</label>
-          <div class="stat-value" id="statSesiones">0</div>
-        </div>
-        <div class="stat-box">
-          <label>Total Hours</label>
-          <div class="stat-value" id="statHoras">0.0</div>
-        </div>
-        <div class="stat-box">
-          <label>Total Profit</label>
-          <div class="stat-value" id="statBeneficio">$0.00</div>
-        </div>
-        <div class="stat-box">
-          <label>Winrate ($/h)</label>
-          <div class="stat-value" id="statWinrate">$0.00/h</div>
-        </div>
-      </div>
-
-      <canvas id="bankrollChart" height="100"></canvas>
-    </div>
-
-    <!-- HISTORY TABLE -->
+    <!-- 3. HISTORY TABLE LAST -->
     <div class="card">
       <h2>Session History</h2>
       <div style="overflow-x:auto;">
@@ -351,13 +361,15 @@
             label: 'Bankroll ($)',
             data: data,
             borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+            borderWidth: 3,
             fill: true,
             tension: 0.2
           }]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
             x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
