@@ -1,115 +1,191 @@
-function renderChart() {
-  const ctx = document.getElementById('bankrollChart').getContext('2d');
-  
-  let cumulative = 0;
-  const labels = ['Start'];
-  const data = [0];
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bankroll Chart</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #0b0f17;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .chart-container {
+      position: relative;
+      width: 80%;
+      max-width: 800px;
+      height: 400px;
+      background: #111827;
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
 
-  sesionesData.forEach((s, index) => {
-    cumulative += s.resultado;
-    labels.push(`S${index + 1}`);
-    data.push(cumulative);
-  });
+  <div class="chart-container">
+    <canvas id="bankrollChart"></canvas>
+  </div>
 
-  if (chartInstance) chartInstance.destroy();
-  if (animationTimer) clearInterval(animationTimer);
+  <script>
+    // 1. Variables globales obligatorias
+    let chartInstance = null;
+    let animationTimer = null;
+    let isHovered = false;
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-  const isPositive = cumulative >= 0;
-  
-  if (isPositive) {
-    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
-    gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-  } else {
-    gradient.addColorStop(0, 'rgba(244, 63, 94, 0.4)');
-    gradient.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
-  }
+    // Datos de prueba (reemplaza esto con tus datos reales)
+    const sesionesData = [
+      { resultado: 150 },
+      { resultado: -50 },
+      { resultado: 200 },
+      { resultado: 80 },
+      { resultado: -120 },
+      { resultado: 300 },
+      { resultado: -40 },
+      { resultado: 180 }
+    ];
 
-  const mainColor = isPositive ? '#10b981' : '#f43f5e';
+    // 2. Controladores para pausar el bucle cuando el usuario pasa el ratón
+    const canvasElement = document.getElementById('bankrollChart');
 
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Bankroll ($)',
-        data: data,
-        borderColor: mainColor,
-        borderWidth: 3,
-        backgroundColor: gradient,
-        fill: true,
-        tension: 0.35,
-        pointBackgroundColor: mainColor,
-        pointBorderColor: '#0b0f17',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 7,
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: mainColor,
-        pointHoverBorderWidth: 3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {
-        x: {
-          type: 'number',
-          easing: 'easeInOutQuart',
-          duration: 3500, // Duración del trazo por segmento (más lento)
-          from: NaN, // Fuerza el efecto de dibujado desde el eje Y
-          delay(ctx) {
-            if (ctx.type !== 'data' || ctx.xStarted) return 0;
-            ctx.xStarted = true;
-            return ctx.index * 400; // Retraso entre punto y punto (trazado progresivo pausado)
-          }
+    canvasElement.addEventListener('mouseenter', () => {
+      isHovered = true;
+    });
+
+    canvasElement.addEventListener('mouseleave', () => {
+      isHovered = false;
+    });
+
+    // 3. Función principal de renderizado
+    function renderChart() {
+      const ctx = canvasElement.getContext('2d');
+      
+      let cumulative = 0;
+      const labels = ['Start'];
+      const data = [0];
+
+      sesionesData.forEach((s, index) => {
+        cumulative += s.resultado;
+        labels.push(`S${index + 1}`);
+        data.push(cumulative);
+      });
+
+      // Limpia instancias y temporizadores anteriores si existen
+      if (chartInstance) chartInstance.destroy();
+      if (animationTimer) clearInterval(animationTimer);
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+      const isPositive = cumulative >= 0;
+      
+      if (isPositive) {
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+      } else {
+        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.4)');
+        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
+      }
+
+      const mainColor = isPositive ? '#10b981' : '#f43f5e';
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Bankroll ($)',
+            data: data,
+            borderColor: mainColor,
+            borderWidth: 3,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: mainColor,
+            pointBorderColor: '#0b0f17',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: mainColor,
+            pointHoverBorderWidth: 3
+          }]
         },
-        y: {
-          type: 'number',
-          easing: 'easeInOutQuart',
-          duration: 3500
-        }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1e293b',
-          titleColor: '#94a3b8',
-          bodyColor: '#f8fafc',
-          bodyFont: { weight: 'bold', size: 14 },
-          borderColor: 'rgba(255,255,255,0.1)',
-          borderWidth: 1,
-          padding: 12,
-          displayColors: false,
-          callbacks: {
-            label: function(context) {
-              return `Bankroll: $${context.parsed.y.toFixed(2)}`;
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            x: {
+              type: 'number',
+              easing: 'easeInOutQuart',
+              duration: 3500, // Duración del desplazamiento por segmento
+              from: NaN, 
+              delay(ctx) {
+                if (ctx.type !== 'data' || ctx.xStarted) return 0;
+                ctx.xStarted = true;
+                return ctx.index * 400; // Pausa progresiva entre puntos
+              }
+            },
+            y: {
+              type: 'number',
+              easing: 'easeInOutQuart',
+              duration: 3500
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              titleColor: '#94a3b8',
+              bodyColor: '#f8fafc',
+              bodyFont: { weight: 'bold', size: 14 },
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false,
+              callbacks: {
+                label: function(context) {
+                  return `Bankroll: $${context.parsed.y.toFixed(2)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { 
+              grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, 
+              ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } } 
+            },
+            y: { 
+              grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, 
+              ticks: { 
+                color: '#64748b', 
+                font: { family: 'Inter', size: 11 },
+                callback: function(value) { return '$' + value; }
+              } 
             }
           }
         }
-      },
-      scales: {
-        x: { 
-          grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false }, 
-          ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } } 
-        },
-        y: { 
-          grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, 
-          ticks: { 
-            color: '#64748b', 
-            font: { family: 'Inter', size: 11 },
-            callback: function(value) { return '$' + value; }
-          } 
-        }
-      }
-    }
-  });
+      });
 
-  // Reinicia el estado visual y vuelve a animar cada 12 segundos
-  animationTimer = setInterval(() => {
-    if (chartInstance && !isHovered) {
-      chartInstance.reset(); // Resetea la posición inicial
-      chartInstance.update(); // Ejecuta el dibujado progresivo
+      // Bucle de reinicio (cada 12s para dar tiempo a ver el trazado lento)
+      animationTimer = setInterval(() => {
+        if (chartInstance && !isHovered) {
+          chartInstance.reset(); 
+          chartInstance.update(); 
+        }
+      }, 12000);
     }
-  }, 12000);
-}
+
+    // 4. Iniciar la gráfica cuando la página cargue
+    window.onload = () => {
+      renderChart();
+    };
+  </script>
+</body>
+</html>
