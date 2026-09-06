@@ -297,7 +297,6 @@
 
     document.getElementById('fecha').valueAsDate = new Date();
 
-    // Eventos de ratón para congelar la animación cuando interactúas con el gráfico
     const heroElem = document.getElementById('chartHeroArea');
     heroElem.addEventListener('mouseenter', () => {
       isHovered = true;
@@ -426,7 +425,7 @@
       elWinrate.className = `stat-value ${winrate >= 0 ? 'positive' : 'negative'}`;
     }
 
-    // Prepara los datos acumulados para la gráfica
+    // Datos completos para el gráfico
     function getChartFullData() {
       let cumulative = 0;
       const labels = ['Start'];
@@ -441,10 +440,10 @@
       return { labels, values, cumulative };
     }
 
-    // Inicializa el gráfico base con degradado de opacidad 0.4 (arriba) a 0.9 (abajo)
+    // Inicializa la estructura fija del gráfico con rango de opacidad 0.3 -> 0.7
     function initChart() {
       const ctx = document.getElementById('bankrollChart').getContext('2d');
-      const { cumulative } = getChartFullData();
+      const { labels, cumulative } = getChartFullData();
 
       if (chartInstance) chartInstance.destroy();
       if (loopIntervalId) clearInterval(loopIntervalId);
@@ -453,13 +452,13 @@
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
       
       if (isPositive) {
-        // Verde: 0.4 de opacidad arriba -> 0.9 de opacidad abajo
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
-        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.9)');
+        // Verde: opacidad de 0.3 a 0.7
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.3)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.7)');
       } else {
-        // Rojo: 0.4 de opacidad arriba -> 0.9 de opacidad abajo
-        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.4)');
-        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.9)');
+        // Rojo: opacidad de 0.3 a 0.7
+        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.3)');
+        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.7)');
       }
 
       const mainColor = isPositive ? '#10b981' : '#f43f5e';
@@ -467,10 +466,10 @@
       chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: [],
+          labels: labels, // Mantiene todas las etiquetas de eje fijas de izquierda a derecha
           datasets: [{
             label: 'Bankroll ($)',
-            data: [],
+            data: [], // Empieza vacío sin estirar ejes
             borderColor: mainColor,
             borderWidth: 3,
             backgroundColor: gradient,
@@ -483,13 +482,14 @@
             pointHoverRadius: 7,
             pointHoverBackgroundColor: '#fff',
             pointHoverBorderColor: mainColor,
-            pointHoverBorderWidth: 3
+            pointHoverBorderWidth: 3,
+            spanGaps: true
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: { duration: 300 },
+          animation: { duration: 250 },
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -528,44 +528,41 @@
       startProgressiveLoop();
     }
 
-    // BUCLE PROGRESIVO DE DIBUJADO PUNTO POR PUNTO
+    // Trazado incremental progresivo de izquierda a derecha
     function startProgressiveLoop() {
       if (loopIntervalId) clearInterval(loopIntervalId);
       if (isHovered) return;
 
-      const { labels, values } = getChartFullData();
+      const { values } = getChartFullData();
       let currentIndex = 0;
 
-      // Limpia la gráfica para empezar a dibujar desde cero
-      chartInstance.data.labels = [];
+      // Limpia valores sin destruir las posiciones fijas del eje X
       chartInstance.data.datasets[0].data = [];
       chartInstance.update('none');
 
       loopIntervalId = setInterval(() => {
         if (isHovered) return;
 
-        if (currentIndex < labels.length) {
-          // Añade el siguiente punto progresivamente
-          chartInstance.data.labels.push(labels[currentIndex]);
+        if (currentIndex < values.length) {
+          // Va añadiendo el valor en su posición exacta correspondiente al eje X
           chartInstance.data.datasets[0].data.push(values[currentIndex]);
           chartInstance.update();
           currentIndex++;
         } else {
-          // Al terminar el trazado, espera 1.5s y reinicia el bucle
+          // Al completar, espera 1.5 segundos y reinicia el trazado
           clearInterval(loopIntervalId);
           setTimeout(() => {
             if (!isHovered) startProgressiveLoop();
           }, 1500);
         }
-      }, 200); // Velocidad: inserta 1 punto cada 200ms
+      }, 200);
     }
 
-    // Muestra toda la gráfica de golpe al pasar el ratón por encima
+    // Al pasar el cursor, renderiza inmediatamente la trazada completa
     function showFullChart() {
       if (loopIntervalId) clearInterval(loopIntervalId);
-      const { labels, values } = getChartFullData();
-      chartInstance.data.labels = labels;
-      chartInstance.data.datasets[0].data = values;
+      const { values } = getChartFullData();
+      chartInstance.data.datasets[0].data = [...values];
       chartInstance.update();
     }
 
