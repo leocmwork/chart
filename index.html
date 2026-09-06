@@ -31,24 +31,6 @@
       margin: 0 auto;
     }
 
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 25px;
-      padding-bottom: 15px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .status-badge {
-      font-size: 0.85rem;
-      background-color: rgba(16, 185, 129, 0.1);
-      color: var(--accent-green);
-      padding: 4px 10px;
-      border-radius: 20px;
-      border: 1px solid var(--accent-green);
-    }
-
     .card {
       background-color: var(--card-bg);
       border-radius: 12px;
@@ -170,21 +152,9 @@
 <body>
 
   <div class="container">
-    <header>
-      <div>
-        <h1 style="margin:0; font-size:1.6rem;">Poker Cash Tracker</h1>
-        <small style="color:var(--text-muted)">Cloud-synced session tracking</small>
-      </div>
-      <div>
-        <span class="status-badge" id="syncStatus">✅ Synced</span>
-        <button id="btnReload" onclick="loadSessions()" style="font-size:0.8rem; margin-left:8px;">🔄 Reload</button>
-      </div>
-    </header>
-
-    <!-- 1. HERO CHART & STATS FIRST -->
+    
+    <!-- 1. HERO CHART & STATS FIRST (NO HEADER) -->
     <div class="card">
-      <h2>Bankroll Progression</h2>
-      
       <div class="stats-grid">
         <div class="stat-box">
           <label>Total Hours</label>
@@ -292,10 +262,9 @@
       }
 
       updateUI();
-      const isEditing = editIndex !== -1;
       resetForm();
 
-      syncAllToCloud(isEditing ? "Updated" : "Saved");
+      syncAllToCloud();
     });
 
     function editSession(index) {
@@ -320,7 +289,7 @@
       
       sesionesData.splice(index, 1);
       updateUI();
-      syncAllToCloud("Deleted");
+      syncAllToCloud();
     }
 
     function resetForm() {
@@ -332,8 +301,7 @@
       document.getElementById('btnCancel').style.display = "none";
     }
 
-    async function syncAllToCloud(actionText = "Synced") {
-      document.getElementById('syncStatus').innerText = "⏳ Syncing...";
+    async function syncAllToCloud() {
       try {
         await fetch(SCRIPT_URL, {
           method: 'POST',
@@ -341,9 +309,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: "OVERWRITE_ALL", data: sesionesData })
         });
-        document.getElementById('syncStatus').innerText = `✅ ${actionText}`;
       } catch (err) {
-        document.getElementById('syncStatus').innerText = "⚠️ Sync Error";
+        console.error("Sync error", err);
       }
     }
 
@@ -436,15 +403,13 @@
     }
 
     async function loadSessions() {
-      document.getElementById('syncStatus').innerText = "🔄 Loading...";
       try {
         const res = await fetch(SCRIPT_URL);
         const data = await res.json();
         sesionesData = Array.isArray(data) ? data : [];
         updateUI();
-        document.getElementById('syncStatus').innerText = "✅ Synced";
       } catch (e) {
-        document.getElementById('syncStatus').innerText = "⚠️ Load Error";
+        console.error("Load error", e);
       }
     }
 
