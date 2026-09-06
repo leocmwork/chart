@@ -1,4 +1,4 @@
-// Inicializa el gráfico base en blanco con relleno de alto contraste
+// Inicializa el gráfico base con degradado de 0.4 (arriba) a 0.9 (abajo)
     function initChart() {
       const ctx = document.getElementById('bankrollChart').getContext('2d');
       const { cumulative } = getChartFullData();
@@ -10,15 +10,13 @@
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
       
       if (isPositive) {
-        // Verde intenso arriba, tono verdoso visible abajo (15% de opacidad)
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.7)');
-        gradient.addColorStop(0.5, 'rgba(16, 185, 129, 0.35)');
-        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.15)');
+        // Verde: 0.4 de opacidad arriba -> 0.9 de opacidad abajo
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.9)');
       } else {
-        // Rojo intenso arriba, tono rojizo visible abajo (15% de opacidad)
-        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.7)');
-        gradient.addColorStop(0.5, 'rgba(244, 63, 94, 0.35)');
-        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.15)');
+        // Rojo: 0.4 de opacidad arriba -> 0.9 de opacidad abajo
+        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.4)');
+        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.9)');
       }
 
       const mainColor = isPositive ? '#10b981' : '#f43f5e';
