@@ -295,6 +295,10 @@
     let isHovered = false;
     let animationLoopId = null;
 
+    let globalAnimProgress = 0;
+    const LOOP_DURATION = 3500;  // Duración del trazado en milisegundos
+    const PAUSE_DURATION = 1000; // Pausa antes de volver a empezar el bucle
+
     document.getElementById('fecha').valueAsDate = new Date();
 
     // Pausa la animación si colocas el cursor sobre la gráfica para ver los tooltips
@@ -435,11 +439,12 @@
       });
 
       if (chartInstance) chartInstance.destroy();
-      if (animationLoopId) clearInterval(animationLoopId);
+      if (animationLoopId) cancelAnimationFrame(animationLoopId);
+
+      const isPositive = cumulative >= 0;
+      const mainColor = isPositive ? '#10b981' : '#f43f5e';
 
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-      const isPositive = cumulative >= 0;
-      
       if (isPositive) {
         gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
         gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
@@ -448,38 +453,22 @@
         gradient.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
       }
 
-      const mainColor = isPositive ? '#10b981' : '#f43f5e';
-
-      // Función que activa el dibujado desde el inicio
-      const triggerProgressiveAnimation = () => {
-        if (!chartInstance) return;
-        
-        const totalPoints = data.length;
-        const totalDuration = 3500; // Tiempo en ms que tarda en dibujarse toda la línea
-        const delayPerPoint = totalDuration / Math.max(totalPoints, 1);
-
-        chartInstance.options.animation = {
-          x: {
-            type: 'number',
-            easing: 'easeOutQuart',
-            duration: delayPerPoint * 2,
-            from: NaN,
-            delay(ctx) {
-              if (ctx.type !== 'data' || ctx.xStarted) return 0;
-              ctx.xStarted = true;
-              return ctx.index * delayPerPoint;
-            }
-          },
-          y: {
-            type: 'number',
-            easing: 'easeOutQuart',
-            duration: delayPerPoint * 2
-          }
-        };
-
-        // Resetea las posiciones y vuelve a animar
-        chartInstance.reset();
-        chartInstance.update();
+      // PLUGIN DE REVELADO PROGRESIVO DE ALTO RENDIMIENTO (COMPATIBLE CON OBS)
+      const progressiveLoopPlugin = {
+        id: 'progressiveLoopPlugin',
+        beforeDatasetsDraw(chart) {
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return;
+          
+          ctx.save();
+          ctx.beginPath();
+          const currentWidth = chartArea.left + (chartArea.width * globalAnimProgress);
+          ctx.rect(0, 0, currentWidth, chart.height);
+          ctx.clip();
+        },
+        afterDatasetsDraw(chart) {
+          chart.ctx.restore();
+        }
       };
 
       chartInstance = new Chart(ctx, {
@@ -504,9 +493,11 @@
             pointHoverBorderWidth: 3
           }]
         },
+        plugins: [progressiveLoopPlugin],
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: false, // Desactivamos la animación interna de Chart.js
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -542,16 +533,33 @@
         }
       });
 
-      // Primer trazado
-      triggerProgressiveAnimation();
+      // BUCLE INFINITO CONTINUO USANDO REQUESTANIMATIONFRAME (60 FPS NATIVOS EN OBS)
+      let totalCycleTime = LOOP_DURATION + PAUSE_DURATION;
+      let startTime = null;
 
-      // BUCLE CONSTANTE: Reinicia la animación progresiva en cuanto termina la anterior
-      const loopInterval = 4200; // Duración total del ciclo (animación + breve pausa)
-      animationLoopId = setInterval(() => {
-        if (!isHovered) {
-          triggerProgressiveAnimation();
+      function loopStep(timestamp) {
+        if (!startTime) startTime = timestamp;
+        let elapsed = (timestamp - startTime) % totalCycleTime;
+
+        if (elapsed <= LOOP_DURATION) {
+          let t = elapsed / LOOP_DURATION;
+          globalAnimProgress = 1 - Math.pow(1 - t, 4); // Transición fluida easeOutQuart
+        } else {
+          globalAnimProgress = 1; // Pausa mostrando el trazado completo
         }
-      }, loopInterval);
+
+        if (isHovered) {
+          globalAnimProgress = 1; // Si hay interactividad del mouse se congela al 100%
+        }
+
+        if (chartInstance) {
+          chartInstance.draw();
+        }
+
+        animationLoopId = requestAnimationFrame(loopStep);
+      }
+
+      animationLoopId = requestAnimationFrame(loopStep);
     }
 
     async function loadSessions() {
