@@ -445,14 +445,14 @@
 
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
       if (isPositive) {
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
-        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+        // Mayor opacidad para que el verde sea más visible e intenso
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.75)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.20)');
       } else {
-        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.4)');
-        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
+        gradient.addColorStop(0, 'rgba(244, 63, 94, 0.75)');
+        gradient.addColorStop(1, 'rgba(244, 63, 94, 0.20)');
       }
 
-      // PLUGIN CORREGIDO: Limpia el canvas en cada fotograma para crear el efecto trazado progresivo real
       const progressiveLoopPlugin = {
         id: 'progressiveLoopPlugin',
         beforeRender(chart) {
@@ -486,11 +486,8 @@
             backgroundColor: gradient,
             fill: true,
             tension: 0.35,
-            pointBackgroundColor: mainColor,
-            pointBorderColor: '#0b0f17',
-            pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 7,
+            pointRadius: 0,
+            pointHoverRadius: 6,
             pointHoverBackgroundColor: '#fff',
             pointHoverBorderColor: mainColor,
             pointHoverBorderWidth: 3
@@ -536,7 +533,6 @@
         }
       });
 
-      // BUCLE ANIMADO FLUIDO
       let totalCycleTime = LOOP_DURATION + PAUSE_DURATION;
       let startTime = null;
 
@@ -546,9 +542,9 @@
 
         if (elapsed <= LOOP_DURATION) {
           let t = elapsed / LOOP_DURATION;
-          globalAnimProgress = 1 - Math.pow(1 - t, 4); // Transición progresiva
+          globalAnimProgress = 1 - Math.pow(1 - t, 4);
         } else {
-          globalAnimProgress = 1; // Pausa antes de reiniciar
+          globalAnimProgress = 1;
         }
 
         if (isHovered) {
